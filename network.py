@@ -1,0 +1,48 @@
+from fastapi import FastAPI, Query
+import socket
+import httpx
+import ssl
+import asyncio
+
+app = FastAPI(title="Network Tester Web Service")
+
+# 🔹 DNS Lookup
+@app.get("/dns")
+def dns_lookup(host: str = Query(..., description="Hostname to resolve")):
+    try:
+        ip = socket.gethostbyname(host)
+        return {"host": host, "ip": ip}
+    except Exception as e:
+        return {"error": str(e)}
+
+# 🔹 TCP Port Check
+@app.get("/port-check")
+def port_check(host: str, port: int):
+    try:
+        with socket.create_connection((host, port), timeout=3):
+            return {"host": host, "port": port, "status": "open"}
+    except Exception as e:
+        return {"host": host, "port": port, "status": "closed", "error": str(e)}
+
+# 🔹 HTTP GET Test
+@app.get("/http-test")
+async def http_test(url: str):
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            response = await client.get(url)
+            return {
+                "url": url,
+                "status_code": response.status_code,
+                "headers": dict(response.headers),
+            }
+    except Exception as e:
+        return {"error": str(e)}
+
+# 🔹 SSL Certificate Info
+@app.get("/ssl-info")
+def ssl_info(host: str, port: int = 443):
+    try:
+        ctx = ssl.create_default_context()
+        with ctx.wrap_socket(socket.socket(), server_hostname=host) as s:
+            s.settimeout(5)
+            s
